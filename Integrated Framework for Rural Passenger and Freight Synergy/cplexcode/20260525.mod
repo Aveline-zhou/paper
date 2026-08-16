@@ -1,12 +1,4 @@
-/*********************************************
- * OPL 22.1.2.0 Model
- * Revised according to manuscript model
- * Revision date: 2026.05.25
- *********************************************/
 
-// =====================================================
-// Sets definition
-// =====================================================
 {string} Nodes = ...;
 {string} Customers = ...;
 {string} Stations = ...;
@@ -18,8 +10,6 @@
 
 int Stages = ...;
 range T = 1..Stages;
-
-//2026.05.25调整：新增扩展时间集合，用于顾客提前送达余额 I_{i,t+1}
 range Tplus = 1..(Stages + 1);
 
 {string} LogisticsNodes = ...;
@@ -41,12 +31,7 @@ float Distance[Arcs] = ...;
 float TransportCost[Arcs] = ...;
 
 float StationLeaseCost[Nodes][T] = ...;
-
-//2026.05.25调整：正文目标函数不再包含服务站库存持有成本项，故删附1�7 StationInventoryHoldingCost 参数
-//float StationInventoryHoldingCost[Stations][T] = ...;
-
 float BusServiceCost[BusRoutes][Nodes] = ...;
-
 float Demand_n[Customers][T] = ...;
 float Demand_s[Customers][T] = ...;
 
@@ -93,11 +78,7 @@ dvar float+ z_s[LogisticsVehicles][Customers][T];
 // Station replenishment and pickup quantities
 dvar float+ q_n[LogisticsVehicles][Nodes][T];
 dvar float+ b_n[BusRoutes][Nodes][T];
-
-//2026.05.25调整：服务站普�1�7�货物跨期库存变量，对应正文 I_{jt}^{n,S}
 dvar float+ StationInventory_n[Stations][T];
-
-//2026.05.25调整：顾客提前�1�7�达余额变量，对应正斄1�7 I_{it}^{n}, I_{it}^{s}
 dvar float+ CustomerAdvance_n[Customers][Tplus];
 dvar float+ CustomerAdvance_s[Customers][Tplus];
 
@@ -115,8 +96,6 @@ dvar float+ TotalVehicleLoad[LogisticsVehicles][T];
 // Auxiliary variables
 dvar boolean StationUsed[Nodes][T];
 dvar float+ mtz_order[LogisticsVehicles][Nodes][T];
-
-
 // =====================================================
 // Objective function, corresponding to manuscript Eq. (1)
 // =====================================================
@@ -135,10 +114,6 @@ minimize
     // Logistics-vehicle transportation cost
     sum(t in T, k in LogisticsVehicles, arc in Arcs)
         TransportCost[arc] * Distance[arc] * u[k][arc][t] ;
-
-    //2026.05.25调整：删除服务站库存持有成本项�1�7�1�7
-    //服务站短期暂存和交接功能由服务站租赁成本 StationLeaseCost 覆盖〄1�7
-
 
 // =====================================================
 // Constraints
@@ -208,9 +183,7 @@ subject to {
     // -------------------------------------------------
     // Constraint (8): Initial freight load of scheduled buses
     // -------------------------------------------------
-    //2026.05.25调整：公交车可以从起点携带货物出发�1�7�1�7
-    //初始载货釄1�7 = 公交本期配�1�7�量 - 本期从服务站取货量�1�7�1�7
-    forall(r in BusRoutes, t in T) {
+        forall(r in BusRoutes, t in T) {
         BusLoadStart[r][t]
         ==
         sum(i in Customers) y_n[r][i][t]
@@ -222,7 +195,6 @@ subject to {
     // -------------------------------------------------
     // Constraint (9): Freight load on the first bus arc
     // -------------------------------------------------
-    //2026.05.25调整：公交起点发出弧上的载货量等于公交初始载货量〄1�7
     forall(r in BusRoutes, t in T) {
         sum(arc in BusRouteArcs[r]: arc.i in BusOrigins) BusLoad[r][arc][t]
         ==
@@ -459,7 +431,6 @@ subject to {
     // -------------------------------------------------
     // Constraint (27): Service-station inter-period inventory balance
     // -------------------------------------------------
-    //2026.05.25调整：服务站普�1�7�货物允许跨期暂存，初始库存默认丄1�7�1�7
     forall(j in Stations) {
         StationInventory_n[j][1]
         ==
@@ -486,8 +457,6 @@ subject to {
     // -------------------------------------------------
     // Constraint (28a)-(28c): Delivery quantity and service-decision consistency
     // -------------------------------------------------
-    //2026.05.25调整：原模型中服务变量与交付量缺少直接绑定�1�7�1�7
-    //此处射1�7 y_n, z_n, z_s 分别丄1�7 BusServeCustomer, VehicleServeCustomer_n, VehicleServeCustomer_s 关联〄1�7
     forall(r in BusRoutes, i in Customers, t in T) {
         y_n[r][i][t] <= M * BusServeCustomer[r][i][t];
     }
@@ -501,7 +470,6 @@ subject to {
     // -------------------------------------------------
     // Constraint (29): Ordinary-goods delivery is assigned to at most one service mode per period
     // -------------------------------------------------
-    //2026.05.25调整：由于顾客需求允许提前�1�7�达，原“当期需求必须当期服务一次�1�7�的等式改为“每期至多一次服务�1�7��1�7�1�7
     forall(i in Customers, t in T) {
         sum(r in BusRoutes) BusServeCustomer[r][i][t]
         +
@@ -513,8 +481,7 @@ subject to {
     // -------------------------------------------------
     // Constraint (30): Special-goods delivery is assigned to at most one logistics vehicle per period
     // -------------------------------------------------
-    //2026.05.25调整：特殊货物只能由物流车服务，但不再要求其必须在需求发生当期服务�1�7�1�7
-    forall(i in Customers, t in T) {
+        forall(i in Customers, t in T) {
         sum(k in LogisticsVehicles) VehicleServeCustomer_s[k][i][t] <= 1;
     }
 
@@ -522,8 +489,7 @@ subject to {
     // -------------------------------------------------
     // Constraint (31a): Bus delivery and special-goods logistics delivery cannot occur simultaneously
     // -------------------------------------------------
-    //2026.05.25调整：保证同丄1�7顾客同一时期朄1�7多接受一次物理访问�1�7�1�7
-    forall(i in Customers, r in BusRoutes, k in LogisticsVehicles, t in T) {
+        forall(i in Customers, r in BusRoutes, k in LogisticsVehicles, t in T) {
         BusServeCustomer[r][i][t]
         +
         VehicleServeCustomer_s[k][i][t]
@@ -535,8 +501,7 @@ subject to {
     // Constraint (31b): If ordinary and special goods are both delivered by logistics vehicles,
     //                   they must be delivered by the same logistics vehicle
     // -------------------------------------------------
-    //2026.05.25调整：避免普通货物和特殊货物由不同物流车在同丄1�7时期分别访问同一顾客〄1�7
-    forall(i in Customers, k in LogisticsVehicles, l in LogisticsVehicles, t in T: k != l) {
+        forall(i in Customers, k in LogisticsVehicles, l in LogisticsVehicles, t in T: k != l) {
         VehicleServeCustomer_n[k][i][t]
         +
         VehicleServeCustomer_s[l][i][t]
@@ -547,8 +512,7 @@ subject to {
     // -------------------------------------------------
     // Constraint (32): Customer advance-delivery balance for ordinary goods
     // -------------------------------------------------
-    //2026.05.25调整：顾客节点允许提前�1�7�达，CustomerAdvance_n 表示普�1�7�货物提前满足余额�1�7�1�7
-    forall(i in Customers, t in T) {
+      forall(i in Customers, t in T) {
         CustomerAdvance_n[i][t + 1]
         ==
         CustomerAdvance_n[i][t]
@@ -564,7 +528,6 @@ subject to {
     // -------------------------------------------------
     // Constraint (33): Customer advance-delivery balance for special goods
     // -------------------------------------------------
-    //2026.05.25调整：CustomerAdvance_s 表示特殊货物提前满足余额〄1�7
     forall(i in Customers, t in T) {
         CustomerAdvance_s[i][t + 1]
         ==
@@ -579,15 +542,14 @@ subject to {
     // -------------------------------------------------
     // Constraint (34): Nonnegative customer advance-delivery surplus
     // -------------------------------------------------
-    //2026.05.25调整：非负提前满足余额用于禁止延朄1�7/欠交〄1�7
-    //由于 CustomerAdvance_n 咄1�7 CustomerAdvance_s 丄1�7 dvar float+＄1�7
-    //该非负�1�7�已由变量定义自动保证，这里不再重复添加显式约束〄1�7
+
+    //由于 CustomerAdvance_n 咄1 7 CustomerAdvance_s 丄1 7 dvar float+＄1 7
+    //该非负 1 7 已由变量定义自动保证，这里不再重复添加显式约束〄1 7
 
 
     // -------------------------------------------------
     // Constraint (35): Initial customer advance-delivery surplus
     // -------------------------------------------------
-    //2026.05.25调整：顾客提前满足余额初始�1�7�为0〄1�7
     forall(i in Customers) {
         CustomerAdvance_n[i][1] == 0;
         CustomerAdvance_s[i][1] == 0;
