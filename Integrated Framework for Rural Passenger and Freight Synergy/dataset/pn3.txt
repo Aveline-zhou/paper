@@ -1,0 +1,170 @@
+// Basic parameters
+Stages = 3;
+
+// Node sets (8 nodes: DC, S1, S2, C1, C2, C3, O1, D1)
+Nodes = {"DC", "S1", "S2", "C1", "C2", "C3", "O1", "D1"};
+
+Customers = {"C1", "C2", "C3"};
+
+Stations = {"S1", "S2"};
+BusOrigins = {"O1"};
+BusDestinations = {"D1"};
+DistributionCenter = {"DC"};
+
+// Logistics nodes
+LogisticsNodes = {"DC", "S1", "S2", "C1", "C2", "C3"};
+
+// Non-logistics nodes 
+NonLogisticsNodes = {"O1", "D1"};
+
+// Vehicle sets 
+BusRoutes = {"R1", "R2"};
+LogisticsVehicles = {"V1", "V2"};
+
+// All arcs
+Arcs = {
+  // Distribution center connections
+  <"DC", "S1">, <"DC", "S2">, 
+  <"DC", "C1">, <"DC", "C2">, <"DC", "C3">,
+  
+  // Connections between service stations
+  <"S1", "S2">, <"S2", "S1">,
+  
+  // Service stations to customers
+  <"S1", "C1">, <"S1", "C2">, <"S1", "C3">,
+  <"S2", "C1">, <"S2", "C2">, <"S2", "C3">,
+  
+  // Connections between customers (C1-C2, C2-C3 双向)
+  <"C1", "C2">, <"C2", "C1">,
+  <"C2", "C3">, <"C3", "C2">,
+  
+  // Return to distribution center
+  <"S1", "DC">, <"S2", "DC">,
+  <"C1", "DC">, <"C2", "DC">, <"C3", "DC">,
+  
+  // Bus routes (公交车专用弧，单向)
+  <"O1", "S1">, <"O1", "S2">, <"C2", "D1">
+};
+
+BusRouteArcs = [
+  // Route 1: O1 -> S1 -> C1 -> C2 -> D1
+  {<"O1", "S1">, <"S1", "C1">, <"C1", "C2">, <"C2", "D1">},
+  // Route 2: O1 -> S2 -> C3 -> C2 -> D1
+  {<"O1", "S2">, <"S2", "C3">, <"C3", "C2">, <"C2", "D1">}
+];
+
+// Distance matrix 
+Distance = #[
+  <"DC", "S1">: 55.1725,  <"DC", "S2">: 54.1502,
+  <"DC", "C1">: 25.4558,  <"DC", "C2">: 14.5602,  <"DC", "C3">: 17.5000,
+  
+  <"S1", "S2">: 1.5000,   <"S2", "S1">: 1.5000,
+  
+  <"S1", "C1">: 29.7321,  <"S1", "C2">: 42.8019,  <"S1", "C3">: 46.5000,
+  <"S2", "C1">: 28.7450,  <"S2", "C2">: 41.6203,  <"S2", "C3">: 45.0000,
+  
+  <"C1", "C2">: 14.5602,  <"C2", "C1">: 14.5602,
+  <"C2", "C3">: 12.0000,  <"C3", "C2">: 12.0000,  
+  
+  <"S1", "DC">: 55.1725,  <"S2", "DC">: 54.1502,
+  <"C1", "DC">: 25.4558,  <"C2", "DC">: 14.5602,  <"C3", "DC">: 17.5000,
+  
+  <"O1", "S1">: 4.4721,   <"O1", "S2">: 5.3151,   <"C2", "D1">: 24.5000   
+]#;
+
+TransportCost = #[
+  <"DC", "S1">: 1, <"DC", "S2">: 1,
+  <"DC", "C1">: 1, <"DC", "C2">: 1, <"DC", "C3">: 1,
+  
+  <"S1", "S2">: 1, <"S2", "S1">: 1,
+  
+  <"S1", "C1">: 1, <"S1", "C2">: 1, <"S1", "C3">: 1,
+  <"S2", "C1">: 1, <"S2", "C2">: 1, <"S2", "C3">: 1,
+  
+  <"C1", "C2">: 1, <"C2", "C1">: 1,
+  <"C2", "C3">: 1, <"C3", "C2">: 1,
+  
+  <"S1", "DC">: 1, <"S2", "DC">: 1,
+  <"C1", "DC">: 1, <"C2", "DC">: 1, <"C3", "DC">: 1,
+  
+  <"O1", "S1">: 1, <"O1", "S2">: 1, <"C2", "D1">: 1
+]#;
+
+// Service station lease cost 【修改：租赁成本改为10】
+// 节点顺序：DC, S1, S2, C1, C2, C3, O1, D1
+StationLeaseCost = [
+  [0, 0, 0],   // DC
+  [10, 10, 10],   // S1
+  [10, 10, 10],   // S2
+  [10, 10, 10],   // C1
+  [10, 10, 10],   // C2
+  [10, 10, 10],   // C3
+  [10, 10, 10],   // O1
+  [0, 0, 0]    // D1
+];
+
+// Bus service cost (2 routes × 8 nodes)
+// 节点顺序：DC, S1, S2, C1, C2, C3, O1, D1
+BusServiceCost = [
+  // R1: 服务S1, C1, C2, D1
+  [0, 0.5, 0, 0.5, 0.5, 0, 0, 0.5],
+  // R2: 服务S2, C3, C2, D1
+  [0, 0, 0.5, 0, 0.5, 0.5, 0, 0.5]
+];
+
+// Demand data - 3 customers (C1, C2, C3), 3 stages
+Demand_n = [
+  // C1: 阶段1,2,3
+  [0, 0, 11],
+  // C2: 阶段1,2,3
+  [30, 28, 18],
+  // C3: 阶段1,2,3
+  [30, 0, 0]
+];
+
+Demand_s = [
+  // C1: 阶段1,2,3
+  [35, 15, 0],
+  // C2: 阶段1,2,3
+  [0, 0, 0],
+  // C3: 阶段1,2,3
+  [0, 12, 24]
+];
+
+// Capacity parameters
+BusCapacity = [35, 35]; // R1 and R2 capacity
+VehicleCapacity = [150, 150]; // 【修改：对应2辆物流车容量】
+
+// Time parameters 【全部修改：距离/20，速度20每小时】
+TravelTime = #[
+  <"DC", "S1">: 2.7586,  <"DC", "S2">: 2.7075,
+  <"DC", "C1">: 1.2728,  <"DC", "C2">: 0.7280,  <"DC", "C3">: 0.8750,
+  
+  <"S1", "S2">: 0.0750,  <"S2", "S1">: 0.0750,
+  
+  <"S1", "C1">: 1.4866,  <"S1", "C2">: 2.1401,  <"S1", "C3">: 2.3250,
+  <"S2", "C1">: 1.4373,  <"S2", "C2">: 2.0810,  <"S2", "C3">: 2.2500,
+  
+  <"C1", "C2">: 0.7280,  <"C2", "C1">: 0.7280,
+  <"C2", "C3">: 0.6000,  <"C3", "C2">: 0.6000,
+  
+  <"S1", "DC">: 2.7586,  <"S2", "DC">: 2.7075,
+  <"C1", "DC">: 1.2728,  <"C2", "DC">: 0.7280,  <"C3", "DC">: 0.8750,
+  
+  <"O1", "S1">: 0.2236,  <"O1", "S2">: 0.2658,  <"C2", "D1">: 1.2250
+]#;
+
+// Service time - corresponds to Nodes order (8 nodes)
+ServiceTime = [
+  0,    // DC
+  0.1,  // S1
+  0.1,  // S2
+  0.2,  // C1
+  0.2,  // C2
+  0.2,  // C3
+  0,    // O1
+  0     // D1
+];
+
+// Maximum working time
+MaxWorkingTime = 8;
